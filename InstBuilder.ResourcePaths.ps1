@@ -1,0 +1,16 @@
+Set-Path @{
+  OSData             = "\\NA-SVR-STORAGE\Storage\PowerShell\Scripts\OSData\OSData.ps1"
+  Configurations     = "\\NA-SVR-STORAGE\Storage\PowerShell\Scripts\InstBuilder\Configurations"
+  ISO                = "\\NA-SVR-STORAGE\Storage\Library\Windows OS Source Files\ISO"
+  WIM                = "\\NA-SVR-STORAGE\Storage\Library\Windows OS Source Files\WIM (Partitioned)"
+  Unattends          = "\\NA-SVR-STORAGE\Storage\Resources\OS Configuration Files\Unattend-Files"
+  UsrClass           = "\\NA-SVR-STORAGE\Storage\Resources\OS Configuration Files\UsrClass-Hives"
+  Modules            = "\\NA-SVR-STORAGE\Storage\PowerShell\Modules"
+  Packages           = "\\NA-SVR-STORAGE\Storage\Library\Packages"
+  Scratch            = "D:\InstBuilder Scratch Path"
+  VMTestLoads        = "C:\TestLoads"
+  ConfigTemplate     = "\\NA-SVR-STORAGE\Storage\PowerShell\Scripts\InstBuilder\Resource Files\configTemplate.ps1"
+  ShortcutHandler    = "\\NA-SVR-STORAGE\Storage\PowerShell\Scripts\InstBuilder\shortcutHandler.ps1"
+  Interface          = Join-Path -Path ([System.Environment]::GetFolderPath("Desktop")) -ChildPath "Tools\Windows Install Builder"
+  Output             = "E:\Library\Windows OS Built Media"
+} -PassThru

@@ -1,0 +1,450 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">  
+  <!-- GENERAL - NULLABLES AND NOT-EMPTIES -->
+  <xs:simpleType name="boolean_nullable">
+    <xs:union>
+      <xs:simpleType>
+        <xs:restriction base='xs:string'>
+          <xs:length value='0'/>
+        </xs:restriction>
+      </xs:simpleType>
+      <xs:simpleType>
+        <xs:restriction base='xs:boolean' />
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="byte_nullable">
+    <xs:union>
+      <xs:simpleType>
+        <xs:restriction base='xs:string'>
+          <xs:length value='0'/>
+        </xs:restriction>
+      </xs:simpleType>
+      <xs:simpleType>
+        <xs:restriction base='xs:unsignedByte' />
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="unsignedByte_nullable">
+    <xs:union>
+      <xs:simpleType>
+        <xs:restriction base='xs:string'>
+          <xs:length value='0'/>
+        </xs:restriction>
+      </xs:simpleType>
+      <xs:simpleType>
+        <xs:restriction base='xs:unsignedByte' />
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="unsignedLong_nullable">
+    <xs:union>
+      <xs:simpleType>
+        <xs:restriction base='xs:string'>
+          <xs:length value='0'/>
+        </xs:restriction>
+      </xs:simpleType>
+      <xs:simpleType>
+        <xs:restriction base='xs:unsignedLong' />
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="string_notEmpty">
+    <xs:restriction base='xs:string'>
+      <xs:minLength value='1'/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- CONFIGURATION -->
+  <xs:element name="Configuration">
+    <xs:complexType>
+      <xs:sequence>
+        <!--
+        DEFAULT:
+          - Via PowerShell, if configuration is constructed via shortcut context,
+            this will be set to the config file name immediately before the xml
+            is resolved.
+          - There is NO DEFAULT when configuration is constructed in any other
+            context. A value MUST be supplied.
+        VALIDITY:
+          - A valid filesystem name, with content and length constraints.
+        -->
+        <xs:element name="Name" type="string_notEmpty" />
+        <!--
+        DEFAULT:
+          - NONE. Must always be specified.
+        VALIDITY:
+          - Must match the Name, or an abbreviated Targeting String, of an
+            operating system defined in OSData.
+        -->
+        <xs:element name="OS" type="string_notEmpty" />
+        <!--
+        DEFAULT:
+          - Via XSLT-equivalent PowerShell, the default or only edition defined
+            for the selected OS. ServerStandard for servers.
+        VALIDITY:
+          - An edition defined for the selected OS.
+        -->
+        <xs:element name="OSEdition" type="xs:string" />
+        <!--
+        DEFAULT:
+          - Via XSLT-equivalent PowerShell, 'true' is preferred, but 'false'
+            will be used if no updated wim exists matching other options.
+        VALIDITY:
+          - A matching wim must exist.
+        -->
+        <xs:element name="OSUpdated" type="boolean_nullable" />
+        <xs:element name="BootMode">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="Both" />
+              <xs:enumeration value="Legacy" />
+              <xs:enumeration value="UEFI" />
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <xs:element name="ScriptParameters" type="ScriptParameters_Type" />
+        <xs:element name="ServicingScripts" type="ServicingScripts_Type" />
+        <!--
+        DEFAULT:
+          - Via XSLT-equivalent PowerShell, 'none'.
+        VALIDITY:
+          - Default may be assigned using the value 'default'.
+          - May be declined using the value 'none'.
+          - Otherwise, must match the BaseName of exactly one file in the
+            UsrClass path, once the '.default' token has been removed.
+        -->
+        <xs:element name="UsrClass" type="xs:string" />
+        <!-- 
+        DEFAULT:
+          - Via XSLT-equivalent PowerShell, the file marked as default in the
+            Unattends path specific to the OS and OSEdition.
+        VALIDITY:
+          - May be declined using 'none'.
+          - Otherwise, must match the BaseName of exactly one file in the
+            Unattends path specific to the OS and OSEdition.
+        -->
+        <xs:element name="Unattend" type="xs:string" />
+        <xs:element name="UnattendTransforms" type="UnattendTransforms_Type" />
+        <!--
+        DEFAULT:
+          - Via XSLT-equivalent PowerShell, an empty string is replaced with
+            'none'.
+        VALIDITY:
+          - Impossible to validate.
+        -->
+        <xs:element name="Script" type="xs:string" />
+        <!--
+        SOURCE VALIDITY:
+          - Name of a file or folder within the Packages path.
+            -OR-
+          - Full path to a file or folder on a local drive or network share.
+            -BUT-
+          - Regardless, file must be an .inf file, or folder must contain one or more .inf files.
+        DESTINATION:
+          - No default, and must not be specified.
+        -->
+        <xs:element name="PEDrivers" type="Packages_Type" />
+        <!--
+        SOURCE VALIDITY:
+          - Name of a file or folder within the Packages path.
+            -OR-
+          - Full path to a file or folder on a local drive or network share.
+            -BUT-
+          - Regardless, file must be an .inf file, or folder must contain one or more .inf files.
+        DESTINATION:
+          - No default, and must not be specified.
+        -->
+        <xs:element name="Drivers" type="Packages_Type" />
+        <!--
+        SOURCE VALIDITY:
+          - Name of a file or folder within the Packages path.
+            -OR-
+          - Full path to a file or folder on a local drive or network share.
+            -BUT-
+          - Regardless, file must be a .cab or .msu file, or a folder
+            containing exactly one .cab or .msu file directly within.
+        DESTINATION:
+          - No default, and must not be specified.
+        -->
+        <xs:element name="OfflinePackages" type="Packages_Type" />
+        <!--
+        SOURCE VALIDITY:
+          - Name of a folder within the Modules path.
+            -OR-
+          - Full path to a file or folder on a local drive or network share.
+        DESTINATION:
+          - Mandatory destination is '\CT\Modules'; no custom destination may
+            be specified.
+        -->
+        <xs:element name="Modules" type="Packages_Type" />
+        <!--
+        SOURCE VALIDITY:
+          - Name of a folder within the Packages path.
+            -OR-
+          - Full path to a file or folder on a local drive or network share.
+        DESTINATION:
+          - Default destination is '\CT\Packages', but a custom destination
+            may be used to place the package anywhere in the image. If the
+            path does not exist, it will be created.
+        -->
+        <xs:element name="Packages" type="Packages_Type" />
+        <xs:element name="SupportedWorkflows" type="SupportedWorkflows_Type" />
+        <xs:element name="WorkflowSettings" type="WorkflowSettings_Type" />
+        <!--
+        DEFAULT:
+          - Via XSLT-equivalent PowerShell, 'Base' when alternates are defined, 'n/a' when they are not.
+        VALIDITY:
+          - A valid filesystem name, with content and length constraints.
+        -->
+        <xs:element name="AlternateName" type="xs:string" />
+        <xs:element name="Alternates" type="Alternates_Type" />
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- CONFIGURATION - SCRIPT PARAMETERS -->
+  <xs:complexType name="ScriptParameter_Type">
+    <!--
+    VALIDITY:
+    - Letters and numbers. No other characters.
+    -->
+    <xs:attribute name="Name" use="required" type="string_notEmpty" />
+    <!--
+    VALIDITY:
+    - Currently, none. May introduce as needed / advised. When transformed for
+      use in PowerShell, (exact) strings 'true' and 'false' become values of
+      [System.Boolean] type.
+    -->
+    <xs:attribute name="Value" use="required" type="xs:string" />
+  </xs:complexType>
+  <!--
+  VALIDITY:
+  - Further validation on the use of this capability is possible, but may be
+    unwise.
+  -->
+  <xs:complexType name="ScriptParameters_Type">
+    <xs:sequence>
+      <xs:element name="ScriptParameter" type="ScriptParameter_Type" minOccurs="0" maxOccurs="3" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- CONFIGURATION - SERVICINGSCRIPTS -->
+  <xs:complexType name="ServicingScripts_Type">
+    <xs:sequence>
+      <!--
+        DEFAULT:
+          - Via XSLT-equivalent PowerShell, an empty string is replaced with
+            'none'.
+        VALIDITY:
+          - Impossible to validate.
+        -->
+      <xs:element name="BootImage" type="xs:string" />
+      <!--
+        DEFAULT:
+          - Via XSLT-equivalent PowerShell, an empty string is replaced with
+            'none'.
+        VALIDITY:
+          - Impossible to validate.
+        -->
+      <xs:element name="InstallImage" type="xs:string" />
+      <!--
+        DEFAULT:
+          - Via XSLT-equivalent PowerShell, an empty string is replaced with
+            'none'.
+        VALIDITY:
+          - Impossible to validate.
+        -->
+      <xs:element name="Media" type="xs:string" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- CONFIGURATION - UNATTEND TRANSFORMS -->
+  <xs:complexType name="UnattendTransforms_Type">
+    <xs:sequence>
+      <!--
+        DEFAULT:
+          - An asterisk, signifying a random name.
+        VALIDITY:
+          - Must be a valid computer name.
+      -->
+      <xs:element name="ComputerName" type="xs:string" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- CONFIGURATION - PACKAGES -->
+  <xs:complexType name="Package_Type">
+    <!--
+        VALIDITY:
+          - The name of a file or folder in a path defined as default for the
+            package type.
+              -OR-
+          - In some contexts, a full local or share path to an existing file or
+            folder.
+              -AND-
+          - Some package types may add more constraints or transformations
+            on the source. "OfflinePackages", for example, will attempt
+            to resolve a .cab or .msu file to apply to the image from a
+            containing folder.
+      -->
+    <xs:attribute name="Source" use="required" type="string_notEmpty" />
+    <!--
+        DEFAULT:
+          - Via XSLT-equivalent PowerShell, either the path defined as default
+            for the destination type, or 'n/a' if the package type does not
+            support custom destinations.
+        VALIDITY:
+          - If the package type supports custom destinations, a valid path
+            relative to the root of the image.
+              -OR-
+          - If the package type does not support custom destinations, no
+            data should be provided at this node; if any data is, an
+            exception will be thrown.
+    -->
+    <xs:attribute name="Destination" use="required" type="xs:string" />
+  </xs:complexType>
+  <xs:complexType name="Packages_Type">
+    <xs:sequence>
+      <xs:element name="Package" type="Package_Type" minOccurs="0" maxOccurs="10" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- CONFIGURATION - SUPPORTED WORKFLOWS -->
+  <xs:complexType name="SupportedWorkflows_Type">
+    <xs:sequence>
+      <xs:element name="SupportedWorkflow" minOccurs="0" maxOccurs="3">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="BuildUSB" />
+            <xs:enumeration value="BuildISO" />
+            <xs:enumeration value="VMTest" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- CONFIGURATION - WORKFLOW SETTINGS -->
+  <xs:complexType name="WorkflowSettings_Type">
+    <xs:sequence>
+      <xs:element name="VMTest">
+        <xs:complexType>
+          <xs:sequence>
+            <!--
+              DEFAULT:
+                - Via XSLT-equivalent PowerShell, 4.
+              VALIDITY:
+                - Between 1 and (Get-VMHost).LogicalProcessorCount.
+            -->
+            <xs:element name="VMProcessorCount" type="unsignedByte_nullable" />
+            <!--
+            DEFAULT:
+              - Via XSLT-equivalent PowerShell, 16gb.
+            VALIDITY:
+              - Must be 512mb, or evenly divisible by 1gb.
+            -->
+            <xs:element name="VMMemoryBytes" type="unsignedLong_nullable" />
+            <!--
+            DEFAULT:
+              - Via XSLT-equivalent PowerShell, 'none'.
+            VALIDITY:
+              - If not 'none', the name of a Virtual Switch defined on the host.
+            -->
+            <xs:element name="VMConnectedSwitch" type="xs:string" />
+            <!--
+            DEFAULT:
+              - Via XSLT-equivalent PowerShell, 1tb.
+            VALIDITY:
+              - At least 500gb, in increments no less than 1gb.
+            -->
+            <xs:element name="VHDSizeBytes" type="unsignedLong_nullable" />
+            <!--
+            DEFAULT:
+            - 'FromInstall', as 'FromFIN' places constraints on the acceptable
+              content/structure of /Configuration/Script.
+            VALIDITY:
+            - One of the enumerated options.
+            -->
+            <xs:element name="TestMode">
+              <xs:simpleType>
+                <xs:restriction base="xs:string">
+                  <xs:enumeration value="" />
+                  <xs:enumeration value="FromInstall" />
+                  <xs:enumeration value="FromFIN" />
+                </xs:restriction>
+              </xs:simpleType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="BuildISO">
+        <xs:complexType>
+          <xs:sequence>
+            <!--
+            DEFAULT:
+            - /Configuration/Name.iso in the default output path.
+            VALIDITY:
+            - Path to an existing directory, or to the intended name of the iso
+              file in the existing directory.
+            -->
+            <xs:element name="OutputPath" type="xs:string" />
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="BuildUSB">
+        <xs:complexType>
+          <xs:sequence>
+            <!--
+            DEFAULT:
+            - 'ExFAT'.
+            VALIDITY:
+            - One of the enumerated options.
+            -->
+            <xs:element name="BigImageMode">
+              <xs:simpleType>
+                <xs:restriction base="xs:string">
+                  <xs:enumeration value="ExFAT" />
+                  <xs:enumeration value="SplitImage" />
+                  <xs:enumeration value="DualPartition" />
+                </xs:restriction>
+              </xs:simpleType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ALTERNATE DEFINITIONS -->
+  <xs:complexType name="Alternates_Targets_Type">
+    <xs:sequence>
+      <xs:element name="Target" type="string_notEmpty" minOccurs="0" maxOccurs="10" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="Alternate_Type">
+    <xs:sequence>
+      <!--
+        VALIDITY:
+          - A valid filesystem name, with content and length constraints.
+      -->
+      <xs:element name="Name" type="string_notEmpty" />
+      <!--
+      DEFAULT:
+      - Via XSLT-equivalent PowerShell, if the list of targets is empty, a
+        single Target is added for 'Base'
+      VALIDITY:
+      - Each target must match the constraints of the AlternateName node,
+        and Alternate/Name, except that it can *also* include asterisks
+        to use as wildcards to target multiple compiled configurations.
+      -->
+      <xs:element name="Targets" type="Alternates_Targets_Type" />
+      <xs:element name="Script" type="string_notEmpty" />
+      <xs:element name="AppendName" type="xs:boolean" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="Alternates_Type">
+    <xs:sequence>
+      <xs:element name="Alternate" type="Alternate_Type" minOccurs="0" maxOccurs="9" />
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
