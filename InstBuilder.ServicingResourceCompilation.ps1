@@ -19,35 +19,76 @@ Write-Verbose "Compiling servicing paths."
 $paths = [ordered]@{
   Scratch = $InstBuilderPaths.Scratch
 }
-$paths.Media = Join-Path -Path $paths.Scratch -ChildPath Media
+$mediaPath = $paths.Media = Join-Path -Path $paths.Scratch -ChildPath Media
 $paths.Mount = Join-Path -Path $paths.Scratch -ChildPath Mount
-
 $paths.InstallImage = Join-Path -Path $paths.Media -ChildPath sources\install.wim
 $paths.BootImage = Join-Path -Path $paths.Media -ChildPath sources\boot.wim
-$paths.ETFSBoot = Join-Path -Path $paths.Media -ChildPath boot\etfsboot.com
-$paths.EFISys = Join-Path -Path $paths.Media -ChildPath efi\microsoft\boot\efisys_noprompt.bin
 
-if ($Configuration.SelectedWorkflow -eq "BuildISO") {
-  $paths.Output = $Configuration.WorkflowSettings.BuildISO.OutputPath
-}
-elseif ($Configuration.SelectedWorkflow -eq "VMTest") {
-  $paths.Output = Join-Path -Path $InstBuilderPaths.Scratch -ChildPath "$($Configuration.Name).iso"
-
-  $paths."VM.Base" = $InstBuilderPaths.VMTestLoads
-  $paths."VM"      = Join-Path -Path $paths."VM.Base" -ChildPath $Configuration.Name
-
-  $paths."VM.VHDs" = Join-Path -Path $Paths."VM" -ChildPath "Virtual Hard Disks"
-  $paths."VM.VHD" = Join-Path -Path $paths."VM.VHDs" -ChildPath "$($Configuration.Name).vhdx"
-}
+$pathsNode = $Configuration.SelectSingleNode("Paths")
 
 $paths.GetEnumerator() |
   ForEach-Object {
-    $Configuration.AppendChild(
+    $pathsNode.AppendChild(
       $Configuration.
       OwnerDocument.
-      CreateElement("Paths.$($_.Key)")
+      CreateElement($_.Key)
     ).InnerXml = $_.Value
   }
+
+if ($Configuration.SelectedWorkflow -eq "VMTest") {
+  $paths = [ordered]@{
+    VMBase = $InstBuilderPaths.VMTestLoads
+  }
+
+  $paths.VM = Join-Path -Path $paths.VMBase -ChildPath $Configuration.Name
+  $paths.VHDs = Join-Path -Path $paths.VM -ChildPath "Virtual Hard Disks"
+  $paths.VHD = Join-Path -Path $paths.VHDs -ChildPath "$($Configuration.Name).vhdx"
+
+  $vmTestNode = $pathsNode.AppendChild(
+    $Configuration.
+    OwnerDocument.
+    CreateElement("VMTest")
+  )
+
+  $paths.GetEnumerator() |
+    ForEach-Object {
+      $vmTestNode.AppendChild(
+        $Configuration.
+        OwnerDocument.
+        CreateElement($_.Key)
+      ).InnerXml = $_.Value
+    }
+}
+
+if ($Configuration.SelectedWorkflow -in "VMTest","BuildISO") {
+  $paths = [ordered]@{
+    Output   = $null
+    ETFSBoot = Join-Path -Path $mediaPath -ChildPath boot\etfsboot.com
+    EFISys   = Join-Path -Path $mediaPath -ChildPath efi\microsoft\boot\efisys_noprompt.bin    
+  }
+
+  if ($Configuration.SelectedWorkflow -eq "BuildISO") {
+    $paths.Output = $Configuration.WorkflowSettings.BuildISO.OutputPath
+  }
+  elseif ($Configuration.SelectedWorkflow -eq "VMTest") {
+    $paths.Output = Join-Path -Path $InstBuilderPaths.Scratch -ChildPath "$($Configuration.Name).iso"
+  }
+
+  $buildIsoNode = $pathsNode.AppendChild(
+    $Configuration.
+    OwnerDocument.
+    CreateElement("BuildISO")
+  )
+
+  $paths.GetEnumerator() |
+    ForEach-Object {
+      $buildIsoNode.AppendChild(
+        $Configuration.
+        OwnerDocument.
+        CreateElement($_.Key)
+      ).InnerXml = $_.Value
+    }
+}
 
 if ($Configuration.SelectedWorkflow -eq "BuildUSB") {
   Write-Verbose "Finding usb targets."

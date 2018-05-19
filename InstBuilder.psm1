@@ -18,14 +18,30 @@ param(
   $UseDefaultResourcePaths
 )
 
+
+
 # Override Microsoft.PowerShell.Utility\Write-Verbose to timestamp all verbose
 # output written by this module.
 function Write-Verbose ($Message) {
+  $stored = $Host.PrivateData.VerboseForegroundColor
+  $Host.PrivateData.VerboseForegroundColor = "White"
+  $Host.PrivateData.VerboseBackgroundColor = $Host.UI.RawUI.BackgroundColor
+
   Microsoft.PowerShell.Utility\Write-Verbose -Message "[$([datetime]::Now.ToString("HH:mm"))] $($Message)"
+
+  $Host.PrivateData.VerboseForegroundColor = $stored
+  $Host.PrivateData.VerboseBackgroundColor = $Host.UI.RawUI.BackgroundColor
 }
 
 function Write-Warning ($Message) {
+  $stored = $Host.PrivateData.WarningForegroundColor
+  $Host.PrivateData.WarningForegroundColor = "Yellow"
+  $Host.PrivateData.WarningBackgroundColor = $Host.UI.RawUI.BackgroundColor
+
   Microsoft.PowerShell.Utility\Write-Warning -Message "[$([datetime]::Now.ToString("HH:mm"))] $($Message)"
+
+  $Host.PrivateData.WarningForegroundColor = $stored
+  $Host.PrivateData.WarningBackgroundColor = $Host.UI.RawUI.BackgroundColor
 }
 
 . $PSScriptRoot\InstBuilder.ResourcePathManager.ps1
@@ -210,38 +226,38 @@ function Test-InstBuilderServicingPath {
   Write-Verbose "Validating servicing paths."
 
   if (
-    $Configuration."Paths.VM" -is [string] -and
-    (Test-Path -LiteralPath $Configuration."Paths.VM")
+    $Configuration.Paths.VMTest -is [System.Xml.XmlElement] -and
+    (Test-Path -LiteralPath $Configuration.Paths.VMTest.VM)
   ) {
     $VM = Get-VM |
-            Where-Object Path -like "$($Configuration."Paths.VM")*"
+            Where-Object Path -like "$($Configuration.Paths.VMTest.VM)*"
 
     $VM |
       ForEach-Object {
         Invoke-InstBuilderVMAction_Stop $VM
       }
 
-    Remove-Item -LiteralPath $Configuration."Paths.VM" -Recurse -Force -ErrorAction Stop  
+    Remove-Item -LiteralPath $Configuration.Paths.VMTest.VM -Recurse -Force -ErrorAction Stop
   }
 
   if (
-    $Configurations."Paths.Output" -is [string] -and
-    (Test-Path -LiteralPath $Configuration."Paths.Output")
+    $Configuration.Paths.BuildISO -is [System.Xml.XmlElement] -and
+    (Test-Path -LiteralPath $Configuration.Paths.BuildISO.Output)
   ) {
-    $imgObj = Get-DiskImage -ImagePath $Configuration."Paths.Output" -ErrorAction Stop
+    $imgObj = Get-DiskImage -ImagePath $Configuration.Paths.BuildISO.Output -ErrorAction Stop
 
     if ($imgObj.Attached) {
-      Dismount-DiskImage -ImagePath $Configuration."Paths.Output" -ErrorAction Stop
+      Dismount-DiskImage -ImagePath $Configuration.Paths.BuildISO.Output -ErrorAction Stop
     }
 
-    Remove-Item -LiteralPath $Configuration."Paths.Output" -ErrorAction Stop
+    Remove-Item -LiteralPath $Configuration.Paths.BuildISO.Output -ErrorAction Stop
   }
 
-  if (Test-Path -LiteralPath $Configuration."Paths.Scratch") {
-    Remove-Item -LiteralPath $Configuration."Paths.Scratch" -Recurse -Force -ErrorAction Stop
+  if (Test-Path -LiteralPath $Configuration.Paths.Scratch) {
+    Remove-Item -LiteralPath $Configuration.Paths.Scratch -Recurse -Force -ErrorAction Stop
   }
 
-  New-Item -Path $Configuration."Paths.Mount" -ItemType Directory -Force |
+  New-Item -Path $Configuration.Paths.Mount -ItemType Directory -Force |
     Out-Null
 }
 #endregion
@@ -263,7 +279,7 @@ function Build-InstBuilderMedia {
 
   Write-Verbose "  - Copying iso content to media path."
 
-  $isoRoot = Mount-DiskImage -ImagePath $Configuration."Paths.ISO.Source" -PassThru |
+  $isoRoot = Mount-DiskImage -ImagePath $Configuration.Paths.Source.ISO -PassThru |
                Get-Volume |
                ForEach-Object {$_.DriveLetter + ":\"}
 
@@ -271,14 +287,14 @@ function Build-InstBuilderMedia {
     Start-Sleep -Milliseconds 250
   } until ((Get-PSDrive | Where-Object Root -eq $isoRoot) -ne $null)
 
-  Copy-Item -LiteralPath $isoRoot -Destination $Configuration."Paths.Media" -Recurse
+  Copy-Item -LiteralPath $isoRoot -Destination $Configuration.Paths.Media -Recurse
 
-  Dismount-DiskImage -ImagePath $Configuration."Paths.ISO.Source"
+  Dismount-DiskImage -ImagePath $Configuration.Paths.Source.ISO
 
   Write-Verbose "  - Overwriting pristine install image."
 
-  Copy-Item -LiteralPath $Configuration."Paths.WIM.Source" `
-            -Destination $Configuration."Paths.InstallImage" `
+  Copy-Item -LiteralPath $Configuration.Paths.Source.WIM `
+            -Destination $Configuration.Paths.InstallImage `
             -Force
 
   Build-InstBuilderMedia_ServiceInstallImage -Configuration $Configuration
@@ -321,19 +337,19 @@ function Build-InstBuilderMedia_ServiceInstallImage {
 
   Write-Verbose "  - Servicing install image."
 
-  Mount-WindowsImage -ImagePath $Configuration."Paths.InstallImage" `
-                     -Path $Configuration."Paths.Mount" `
+  Mount-WindowsImage -ImagePath $Configuration.Paths.InstallImage `
+                     -Path $Configuration.Paths.Mount `
                      -Index 1 |
     Out-Null
 
   $paths = @{
-    Def_NTUSER_OL = Join-Path -Path $Configuration."Paths.Mount" -ChildPath Users\Default\NTUSER.DAT
+    Def_NTUSER_OL = Join-Path -Path $Configuration.Paths.Mount -ChildPath Users\Default\NTUSER.DAT
     Def_UsrClass_Staged_REL = "Users\Default\AppData\Local\Microsoft\Windows\UsrClass.dat.Staged"
     Def_UsrClass_Final_OS = "C:\Users\Default\AppData\Local\Microsoft\Windows\UsrClass.dat"
-    SetupComplete = Join-Path -Path $Configuration."Paths.Mount" -ChildPath Windows\Setup\Scripts\SetupComplete.cmd
+    SetupComplete = Join-Path -Path $Configuration.Paths.Mount -ChildPath Windows\Setup\Scripts\SetupComplete.cmd
   }
 
-  $paths.Def_UsrClass_Staged_OL = Join-Path -Path $Configuration."Paths.Mount" -ChildPath $paths.Def_UsrClass_Staged_REL
+  $paths.Def_UsrClass_Staged_OL = Join-Path -Path $Configuration.Paths.Mount -ChildPath $paths.Def_UsrClass_Staged_REL
   $paths.Def_UsrClass_Staged_OS = Join-Path -Path C:\ -ChildPath $paths.Def_UsrClass_Staged_REL
 
   if ($Configuration.UsrClass -ne "none") {
@@ -347,7 +363,7 @@ function Build-InstBuilderMedia_ServiceInstallImage {
   }
 
   if ($Configuration.ServicingScripts.InstallImage -ne "none") {
-    $paths.Hive_Backup = New-Item -Path (Join-Path -Path $Configuration."Paths.Mount" -ChildPath 'CT\Temp\Hive Backup') `
+    $paths.Hive_Backup = New-Item -Path (Join-Path -Path $Configuration.Paths.Mount -ChildPath 'CT\Temp\Hive Backup') `
                                   -ItemType Directory `
                                   -Force |
                            ForEach-Object FullName
@@ -358,7 +374,7 @@ function Build-InstBuilderMedia_ServiceInstallImage {
       Copy-Item -Destination $paths.Hive_Backup
 
     Invoke-InstBuilderServicingScript `
-    -ImageRoot $Configuration."Paths.Mount" `
+    -ImageRoot $Configuration.Paths.Mount `
     -ImageRootName IMG `
     -ServicingScript $Configuration.ServicingScripts.InstallImage `
     -ScriptParameters (Get-InstBuilderScriptParameterObject -Configuration $Configuration) `
@@ -366,7 +382,7 @@ function Build-InstBuilderMedia_ServiceInstallImage {
   }
 
   if ($Configuration.Script -ne "none") {
-    $scriptPath = Join-Path -Path $Configuration."Paths.Mount" -ChildPath CT\script.ps1
+    $scriptPath = Join-Path -Path $Configuration.Paths.Mount -ChildPath CT\script.ps1
 
     New-Item -Path $scriptPath -Value $Configuration.Script -Force |
       Out-Null
@@ -376,7 +392,7 @@ function Build-InstBuilderMedia_ServiceInstallImage {
     $Drivers |
       ForEach-Object {
         Add-WindowsDriver -Driver $_ `
-                          -Path $Configuration."Paths.Mount" `
+                          -Path $Configuration.Paths.Mount `
                           -Recurse `
                           -ForceUnsigned `
                           -WarningAction SilentlyContinue `
@@ -388,16 +404,16 @@ function Build-InstBuilderMedia_ServiceInstallImage {
   if ($OfflinePackages.Count -gt 0) {
     $OfflinePackages |
       ForEach-Object {
-        Add-WindowsPackage -PackagePath $_ -Path $Configuration."Paths.Mount"
+        Add-WindowsPackage -PackagePath $_ -Path $Configuration.Paths.Mount
       } |
       Out-Null
   }
 
   if ($Modules.Count -gt 0) {
-    $ModulesPath = Join-Path -Path $Configuration."Paths.Mount" -ChildPath $Modules[0].GetAttribute("Destination")
+    $ModulesPath = Join-Path -Path $Configuration.Paths.Mount -ChildPath $Modules[0].GetAttribute("Destination")
 
     $Modules |
-      Copy-InstBuilderImagePackage -ImageRoot $Configuration."Paths.Mount"
+      Copy-InstBuilderImagePackage -ImageRoot $Configuration.Paths.Mount
 
     New-Item -Path $ModulesPath `
              -Name import.ps1 `
@@ -420,10 +436,10 @@ function Build-InstBuilderMedia_ServiceInstallImage {
 
   if ($Packages.Count -gt 0) {
     $Packages |
-      Copy-InstBuilderImagePackage -ImageRoot $Configuration."Paths.Mount"
+      Copy-InstBuilderImagePackage -ImageRoot $Configuration.Paths.Mount
   }
 
-  Dismount-WindowsImage -Path $Configuration."Paths.Mount" -Save |
+  Dismount-WindowsImage -Path $Configuration.Paths.Mount -Save |
     Out-Null
 }
 function Build-InstBuilderMedia_ServiceBootImage {
@@ -451,20 +467,20 @@ function Build-InstBuilderMedia_ServiceBootImage {
 
   Write-Verbose "  - Servicing boot image."
 
-  $imageItem = Get-Item -LiteralPath $Configuration."Paths.BootImage"
+  $imageItem = Get-Item -LiteralPath $Configuration.Paths.BootImage
 
   if ($imageItem.Attributes.HasFlag([System.IO.FileAttributes]::ReadOnly)) {
     $imageItem.Attributes = $imageItem.Attributes -bxor [System.IO.FileAttributes]::ReadOnly
   }
 
-  Mount-WindowsImage -ImagePath $Configuration."Paths.BootImage" `
-                     -Path $Configuration."Paths.Mount" `
+  Mount-WindowsImage -ImagePath $Configuration.Paths.BootImage `
+                     -Path $Configuration.Paths.Mount `
                      -Index 2 | # Haven't investigated why index "2" instead of "1" is needed.
     Out-Null
 
   if ($Configuration.ServicingScripts.BootImage -ne "none") {
     Invoke-InstBuilderServicingScript `
-    -ImageRoot $Configuration."Paths.Mount" `
+    -ImageRoot $Configuration.Paths.Mount `
     -ImageRootName IMG `
     -ServicingScript $Configuration.ServicingScripts.BootImage `
     -ScriptParameters (Get-InstBuilderScriptParameterObject -Configuration $Configuration) `
@@ -472,7 +488,7 @@ function Build-InstBuilderMedia_ServiceBootImage {
   }
 
   if ($Configuration.Unattend -ne "none") {
-    New-Item -Path $Configuration."Paths.Mount" `
+    New-Item -Path $Configuration.Paths.Mount `
              -Name autounattend.xml `
              -Value $Configuration.Unattend `
              -Force |
@@ -483,7 +499,7 @@ function Build-InstBuilderMedia_ServiceBootImage {
     $PEDrivers |
       ForEach-Object {
         Add-WindowsDriver -Driver $_ `
-                          -Path $Configuration."Paths.Mount" `
+                          -Path $Configuration.Paths.Mount `
                           -Recurse `
                           -ForceUnsigned `
                           -WarningAction Ignore |
@@ -491,7 +507,7 @@ function Build-InstBuilderMedia_ServiceBootImage {
       }
   }
 
-  Dismount-WindowsImage -Path $Configuration."Paths.Mount" -Save |
+  Dismount-WindowsImage -Path $Configuration.Paths.Mount -Save |
     Out-Null
 }
 function Build-InstBuilderMedia_ServiceMedia {
@@ -516,18 +532,18 @@ function Build-InstBuilderMedia_ServiceMedia {
   Write-Verbose "  - Servicing media."
 
   if ($Configuration.BootMode -eq "UEFI") {
-    $pathToRemove = Join-Path -Path $Configuration."Paths.Media" -ChildPath bootmgr
+    $pathToRemove = Join-Path -Path $Configuration.Paths.Media -ChildPath bootmgr
 
     Remove-Item -LiteralPath $pathToRemove -Recurse -Force
   }
   elseif ($Configuration.BootMode -eq "Legacy") {
-    $pathToRemove = Join-Path -Path $Configuration."Paths.Media" -ChildPath efi
+    $pathToRemove = Join-Path -Path $Configuration.Paths.Media -ChildPath efi
 
     Remove-Item -LiteralPath $pathToRemove -Recurse -Force
   }
 
   Invoke-InstBuilderServicingScript `
-  -ImageRoot $Configuration."Paths.Media" `
+  -ImageRoot $Configuration.Paths.Media `
   -ImageRootName MEDIA `
   -ServicingScript $Configuration.ServicingScripts.Media `
   -ScriptParameters (Get-InstBuilderScriptParameterObject -Configuration $Configuration)
@@ -817,7 +833,7 @@ function Write-InstBuilderISO {
     $bootStreamMbr = New-Object -ComObject ADODB.Stream
     $bootStreamMbr.Open()
     $bootStreamMbr.Type = 1 # Binary
-    $bootStreamMbr.LoadFromFile($Configuration."Paths.ETFSBoot")
+    $bootStreamMbr.LoadFromFile($Configuration.Paths.BuildISO.ETFSBoot)
     $bootOptionsMbr.AssignBootImage($bootStreamMbr)
     $bootOptionsMbr.PlatformId = $platformId.x86
     $bootOptionsMbr.Emulation = $emulationType.None
@@ -827,7 +843,7 @@ function Write-InstBuilderISO {
     $bootStreamEfi = New-Object -ComObject ADODB.Stream
     $bootStreamEfi.Open()
     $bootStreamEfi.Type = 1 # Binary
-    $bootStreamEfi.LoadFromFile($Configuration."Paths.EFISys")
+    $bootStreamEfi.LoadFromFile($Configuration.Paths.BuildISO.EFISys)
     $bootOptionsEfi.AssignBootImage($bootStreamEfi)
     $bootOptionsEfi.PlatformId = $platformId.EFI
     $bootOptionsEfi.Emulation = $emulationType.None
@@ -851,13 +867,13 @@ function Write-InstBuilderISO {
 
   $imgCreatorRoot = $imgCreator.Root
 
-  $imgCreatorRoot.AddTree($Configuration."Paths.Media", $false)
+  $imgCreatorRoot.AddTree($Configuration.Paths.Media, $false)
 
   $resultImage = $imgCreator.CreateResultImage()
 
   [InstBuilder.ISOWriter]::WriteIStreamToFile(
     $resultImage.ImageStream,
-    $Configuration."Paths.Output"
+    $Configuration.Paths.BuildISO.Output
   )
 
   while ([System.Runtime.Interopservices.Marshal]::ReleaseComObject($resultImage) -gt 0) {}
@@ -891,7 +907,7 @@ function Write-InstBuilderUSB_All {
     $Configuration
   )
  
-  $imageIsOversized = (Get-Item -LiteralPath $Configuration."Paths.InstallImage").Length -ge 4gb
+  $imageIsOversized = (Get-Item -LiteralPath $Configuration.Paths.InstallImage).Length -ge 4gb
 
   if ($imageIsOversized) {
     Write-Warning "Install image is oversized (-ge 4gb)."
@@ -908,31 +924,33 @@ function Write-InstBuilderUSB_All {
   elseif ($WriteMode -eq "DualPartition") {
     Write-Warning "USB will have separate boot and data volumes. Builds -lt 15063 are incompatible."
 
-    $Configuration.AppendChild(
+    $pathsNode = $Configuration.SelectSingleNode("Paths")
+
+    $pathsNode.AppendChild(
       $Configuration.
       OwnerDocument.
-      CreateElement("Paths.Media.Boot")
-    ).InnerXml = New-Item -Path $Configuration."Paths.Scratch" `
-                          -Name "Media.Boot" `
+      CreateElement("Media_Boot")
+    ).InnerXml = New-Item -Path $Configuration.Paths.Scratch `
+                          -Name Media_Boot `
                           -ItemType Directory |
                    ForEach-Object FullName
 
-    $Configuration.AppendChild(
+    $pathsNode.AppendChild(
       $Configuration.
       OwnerDocument.
-      CreateElement("Paths.Media.Data")
-    ).InnerXml = $Configuration."Paths.Media"
+      CreateElement("Media_Data")
+    ).InnerXml = $Configuration.Paths.Media
 
-    Get-ChildItem -LiteralPath $Configuration."Paths.Media" -Force |
+    Get-ChildItem -LiteralPath $Configuration.Paths.Media -Force |
       Where-Object Name -in boot,efi,bootmgr,bootmgr.efi |
-      Move-Item -Destination $Configuration."Paths.Media.Boot" -Force
+      Move-Item -Destination $Configuration.Paths.Media_Boot -Force
 
-    $wimDest = New-Item -Path $Configuration."Paths.Media.Boot" `
+    $wimDest = New-Item -Path $Configuration.Paths.Media_Boot `
                         -Name sources `
                         -ItemType Directory |
                  ForEach-Object FullName
 
-    Move-Item -LiteralPath $Configuration."Paths.BootImage" `
+    Move-Item -LiteralPath $Configuration.Paths.BootImage `
               -Destination $wimDest
   }
 
@@ -1049,7 +1067,7 @@ function Write-InstBuilderUSB_OnePartition {
     Start-Sleep -Milliseconds 250
   } while ((Get-PSDrive | Where-Object Root -eq $usbRoot) -eq $null)
 
-  Get-ChildItem -LiteralPath $Configuration."Paths.Media" -Force |
+  Get-ChildItem -LiteralPath $Configuration.Paths.Media -Force |
     Copy-Item -Destination $usbRoot -Recurse -Force
 
   New-Item -Path $usbRoot `
@@ -1116,9 +1134,9 @@ function Write-InstBuilderUSB_TwoPartition {
     Start-Sleep -Milliseconds 250
   } while (@(Get-PSDrive | Where-Object Root -in $bootRoot,$dataRoot).Count -lt 2)
 
-  Get-ChildItem -LiteralPath $Configuration."Paths.Media.Boot" -Force |
+  Get-ChildItem -LiteralPath $Configuration.Paths.Media_Boot -Force |
     Copy-Item -Destination $bootRoot -Force -Recurse
-  Get-ChildItem -LiteralPath $Configuration."Paths.Media.Data" -Force |
+  Get-ChildItem -LiteralPath $Configuration.Paths.Media_Data -Force |
     Copy-Item -Destination $dataRoot -Force -Recurse
 
   $bootRoot,$dataRoot |
@@ -1196,10 +1214,10 @@ function Invoke-InstBuilderVMTest {
 
   $settings = $Configuration.WorkflowSettings.VMTest
 
-  New-Item -Path $Configuration."Paths.VM.VHDs" -ItemType Directory -Force |
+  New-Item -Path $Configuration.Paths.VMTest.VHDs -ItemType Directory -Force |
     Out-Null
 
-  New-VHD -Path $Configuration."Paths.VM.VHD" -SizeBytes $settings.VHDSizeBytes |
+  New-VHD -Path $Configuration.Paths.VMTest.VHD -SizeBytes $settings.VHDSizeBytes |
     Out-Null
 
   if ($Configuration.BootMode -eq "Legacy") {
@@ -1210,8 +1228,8 @@ function Invoke-InstBuilderVMTest {
   }
 
   $VM = New-VM -Name $Configuration.Name `
-               -Path $Configuration."Paths.VM.Base" `
-               -VHDPath $Configuration."Paths.VM.VHD" `
+               -Path $Configuration.Paths.VMTest.VMBase `
+               -VHDPath $Configuration.Paths.VMTest.VHD `
                -Generation $VMGeneration
 
   $VM |
@@ -1228,8 +1246,8 @@ function Invoke-InstBuilderVMTest {
       Connect-VMNetworkAdapter -SwitchName $settings.VMConnectedSwitch
   }
 
-  $isoPath = Move-Item -LiteralPath $Configuration."Paths.Output" `
-                       -Destination $Configuration."Paths.VM" `
+  $isoPath = Move-Item -LiteralPath $Configuration.Paths.BuildISO.Output `
+                       -Destination $Configuration.Paths.VMTest.VM `
                        -PassThru |
               ForEach-Object FullName
 
@@ -1247,7 +1265,7 @@ function Invoke-InstBuilderVMTest {
   }
 
   Write-Verbose "  - Clearing scratch content. (Early, just because we can.)"
-  Remove-Item -LiteralPath $Configuration."Paths.Scratch" `
+  Remove-Item -LiteralPath $Configuration.Paths.Scratch `
               -Recurse `
               -Force `
               -ErrorAction Stop
@@ -1765,11 +1783,11 @@ function Start-InstBuilder {
       Invoke-InstBuilderVMTest -Configuration $Configuration
     }
 
-    if (Test-Path -LiteralPath $Configuration."Paths.Scratch") {
+    if (Test-Path -LiteralPath $Configuration.Paths.Scratch) {
       $resultObj."Processing Status" = "Clearing scratch content."
 
       Write-Verbose "Clearing scratch content."
-      Remove-Item -LiteralPath $Configuration."Paths.Scratch" `
+      Remove-Item -LiteralPath $Configuration.Paths.Scratch `
                   -Recurse `
                   -Force # Needed to force removal of "Read Only" items.
     }

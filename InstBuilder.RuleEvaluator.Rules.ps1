@@ -363,13 +363,25 @@ rule -Individual /Configuration/OS `
 
   $node.$valProp = $os[0].Name
 
-  $node.
-    SelectSingleNode(".."). # Configuration
-    AppendChild(
-      $node.
-        OwnerDocument.
-        CreateElement("Paths.ISO.Source")
-    ).InnerXml = $isoPath
+  $pathsNode = $node.
+               SelectSingleNode(".."). # Configuration
+               AppendChild(
+    $node.
+    OwnerDocument.
+    CreateElement("Paths")
+  )
+
+  $sourceNode = $pathsNode.AppendChild(
+    $node.
+    OwnerDocument.
+    CreateElement("Source")
+  )
+
+  $sourceNode.AppendChild(
+    $node.
+    OwnerDocument.
+    CreateElement("ISO")
+  ).InnerXml = $isoPath
 }
 
 rule -Individual /Configuration/OSEdition `
@@ -435,10 +447,12 @@ rule -Individual /Configuration/OSUpdated `
     throw "No wim file was found at the path indicated by OS and Edition settings."
   }
 
-  $cfgNode.AppendChild(
-    $cfgNode.
-      OwnerDocument.
-      CreateElement("Paths.WIM.Source")
+  $sourceNode = $cfgNode.SelectSingleNode("Paths/Source")
+
+  $sourceNode.AppendChild(
+    $node.
+    OwnerDocument.
+    CreateElement("WIM")
   ).InnerXml = $wimPaths.($updatedMap.($node.$valProp))
 }
 
