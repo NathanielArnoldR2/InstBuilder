@@ -18,10 +18,6 @@ param(
   $UseDefaultResourcePaths
 )
 
-
-
-# Override Microsoft.PowerShell.Utility\Write-Verbose to timestamp all verbose
-# output written by this module.
 function Write-Verbose ($Message) {
   $stored = $Host.PrivateData.VerboseForegroundColor
   $Host.PrivateData.VerboseForegroundColor = "White"
@@ -1643,13 +1639,13 @@ function New-InstBuilderShortcuts {
     if ($config.AlternateName -ne 'n/a') {
       $shortcutName += " ($($config.AlternateName))"
     }
-    $shortcutData += New-ShortcutData $shortcutName "Start Build",$config.Name -NoExit -RunAsAdministrator
+    $shortcutData += New-ShortcutData $shortcutName "Start Build",$config.Name -RunAsAdministrator
 
     $compiledAlternates = $config.SelectNodes("/Configuration/CompiledAlternates/CompiledAlternate/Name") |
                             ForEach-Object InnerXml
 
     foreach ($alternate in $compiledAlternates) {
-      $shortcutData += New-ShortcutData "Start Build ($alternate)" "Start Build",$config.Name,$alternate -NoExit -RunAsAdministrator
+      $shortcutData += New-ShortcutData "Start Build ($alternate)" "Start Build",$config.Name,$alternate -RunAsAdministrator
     }
 
   $inc = 1
@@ -1704,6 +1700,7 @@ function Start-InstBuilder {
     $Configuration,
 
     [ValidateSet("VMTest", "BuildISO", "BuildUSB")]
+    [string]
     $Workflow
   )
   $resultObj = [PSCustomObject]@{
