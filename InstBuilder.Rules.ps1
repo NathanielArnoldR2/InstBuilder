@@ -879,8 +879,8 @@ rule -Individual /Configuration/WorkflowSettings/BuildUSB/BigImageMode `
 }
 
 if ($ResolveMode -eq "NamedConfiguration") {
-  . $PSScriptRoot\InstBuilder.RuleEvaluator.Rules.NamedConfiguration.ps1
+  . $PSScriptRoot\InstBuilder.Rules.NamedConfiguration.ps1
 }
 elseif ($ResolveMode -eq "SuppliedConfiguration") {
-  . $PSScriptRoot\InstBuilder.RuleEvaluator.Rules.SuppliedConfiguration.ps1
+  . $PSScriptRoot\InstBuilder.Rules.SuppliedConfiguration.ps1
 }

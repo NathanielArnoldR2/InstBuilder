@@ -116,7 +116,7 @@ function Resolve-InstBuilderConfiguration_EachPass {
 
     New-Alias -Name rule -Value New-EvaluationRule
 
-    . $PSScriptRoot\InstBuilder.RuleEvaluator.Rules.ps1
+    . $PSScriptRoot\InstBuilder.Rules.ps1
 
     Remove-Item alias:\rule
 
