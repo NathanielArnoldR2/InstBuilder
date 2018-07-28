@@ -871,13 +871,6 @@ rule -Individual /Configuration/WorkflowSettings/BuildISO/OutputPath `
   }
 }
 
-rule -Individual /Configuration/WorkflowSettings/BuildUSB/BigImageMode `
-     -Script {
-  if ($nodeValue -eq "SplitImage") {
-    throw "Not implemented."
-  }
-}
-
 if ($ResolveMode -eq "NamedConfiguration") {
   . $PSScriptRoot\InstBuilder.Rules.NamedConfiguration.ps1
 }

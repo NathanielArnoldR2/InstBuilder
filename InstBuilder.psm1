@@ -531,7 +531,9 @@ function Build-InstBuilderMedia_ServiceInstallImage {
   if ($OfflinePackages.Count -gt 0) {
     $OfflinePackages |
       ForEach-Object {
-        Add-WindowsPackage -PackagePath $_ -Path $Configuration.Paths.Mount
+        Add-WindowsPackage -PackagePath $_ `
+                           -Path $Configuration.Paths.Mount `
+                           -Verbose:$false
       } |
       Out-Null
   }
@@ -1048,6 +1050,19 @@ function Write-InstBuilderUSB_All {
   if ($WriteMode -eq "ExFAT") {
     Write-Warning "USB will have a single 'ExFAT' volume, and will be incompatible with UEFI Boot Mode."
   }
+  elseif ($WriteMode -eq "SplitImage") {
+    Write-Warning "Install image will be split between two or more .swm files (each -lt 4gb)."
+
+    Split-WindowsImage -ImagePath $Configuration.Paths.InstallImage `
+                       -SplitImagePath ($Configuration.Paths.InstallImage -replace "wim$","swm") `
+                       -FileSize 4095 # In MB; 4gb - 1.
+
+    Remove-Item -LiteralPath $Configuration.Paths.InstallImage
+
+    # So long as the WIM is split into segments less than 4gb in size, the
+    # content may be written on a single (FAT32) partition as normal.
+    $WriteMode = "Normal"
+  }
   elseif ($WriteMode -eq "DualPartition") {
     Write-Warning "USB will have separate boot and data volumes. Builds -lt 15063 are incompatible."
 
@@ -1180,7 +1195,8 @@ function Write-InstBuilderUSB_OnePartition {
                  New-Partition -MbrType $mbrTypeMap.$WriteMode -UseMaximumSize -IsActive
 
   $Partition |
-    Format-Volume -FileSystem $fsMap.$WriteMode
+    Format-Volume -FileSystem $fsMap.$WriteMode |
+    Out-Null
 
   $Partition |
     Add-PartitionAccessPath -AssignDriveLetter
@@ -1203,7 +1219,7 @@ function Write-InstBuilderUSB_OnePartition {
     Out-Null
 
   Start-Process -FilePath C:\PS\Resources\RemoveDrive.exe `
-                -ArgumentList "`"$($driveRoot.Substring(0, 2))`" -l" `
+                -ArgumentList "`"$($usbRoot.Substring(0, 2))`" -l" `
                 -PassThru |
     Wait-Process
 }
